@@ -14,7 +14,7 @@ $(document).ready(function () {
         padding: { top: 40, bottom: 40, left: 40, right: 40 },
         background: { type: 'linear', value: ['#7F00FF', '#E100FF'] }, // Purple gradient
         radius: 36,
-        shadow: true, // New Default
+        shadow: false, // Default OFF
         blurLevel: 8,
         blurRects: [], // {x, y, w, h}
         isPaddingLinked: true
@@ -77,10 +77,29 @@ $(document).ready(function () {
     initCanvasInteraction(); // New
     initKeyboardEvents(); // New
     initLocalization(); // New
+    initMobileNav(); // New
+
+    function initMobileNav() {
+        const $btns = $('.nav-btn');
+        const $sections = $('.tool-section');
+
+        $btns.on('click', function () {
+            const targetId = $(this).data('target');
+
+            // Update Btns
+            $btns.removeClass('active');
+            $(this).addClass('active');
+
+            // Update Sections
+            // For mobile, this toggles visibility via CSS
+            $sections.removeClass('active');
+            $(`#${targetId}`).addClass('active');
+        });
+    }
 
     function saveState() {
-        // Exclude blurRects from state before saving (Privacy)
-        const { blurRects, ...stateToSave } = state;
+        // Exclude blurRects AND shadow from state before saving (Privacy & User Preference)
+        const { blurRects, shadow, ...stateToSave } = state;
         localStorage.setItem('pixlane_state', JSON.stringify(stateToSave));
     }
 
@@ -90,8 +109,8 @@ $(document).ready(function () {
 
         // Merge saved state with defaults to ensure new fields
         const parsed = JSON.parse(saved);
-        // Explicitly reset blurRects to [] even if some old data has it (though new saves won't have it)
-        return { ...defaultState, ...parsed, blurRects: [] };
+        // Explicitly reset blurRects to [] and shadow to false
+        return { ...defaultState, ...parsed, blurRects: [], shadow: false };
     }
 
     function initLocalization() {
@@ -112,6 +131,13 @@ $(document).ready(function () {
             $('#lbl-background').text('배경 패턴 선택');
             $('#lbl-blur').text('개인정보 가리기');
             $('#blur-help').text('이미지 위를 드래그해서 개인정보를 가리세요');
+
+            // Nav
+            $('#nav-lbl-radius').text('둥글기');
+            $('#nav-lbl-padding').text('여백');
+            $('#nav-lbl-background').text('배경');
+            $('#nav-lbl-blur').text('가리기');
+            $('#nav-lbl-save').text('저장');
         } else {
             $('#lbl-radius').text('Corner Radius');
             $('#lbl-shadow').text('Drop Shadow');
@@ -119,6 +145,13 @@ $(document).ready(function () {
             $('#lbl-background').text('Background');
             $('#lbl-blur').text('Blur');
             $('#blur-help').text('Drag on the image to create a blur box.');
+
+            // Nav
+            $('#nav-lbl-radius').text('Radius');
+            $('#nav-lbl-padding').text('Pad');
+            $('#nav-lbl-background').text('BG');
+            $('#nav-lbl-blur').text('Blur');
+            $('#nav-lbl-save').text('Save');
         }
     }
 
@@ -174,16 +207,24 @@ $(document).ready(function () {
 
     function initCanvasInteraction() {
         // We attach listeners to the canvas element
-        const getMousePos = (e) => {
+        const getPointerPos = (e) => {
             const rect = canvas.getBoundingClientRect();
-            // Scale if canvas is styled to be smaller than actual pixels (though we use max-width 100%, intrinsic size usually matches)
-            // But canvas.width is the intrinsic size. 
-            // We need to map client coordinates to canvas coordinates.
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
+            let clientX, clientY;
+
+            if (e.type.startsWith('touch')) {
+                const touch = e.originalEvent.touches[0] || e.originalEvent.changedTouches[0];
+                clientX = touch.clientX;
+                clientY = touch.clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
             return {
-                x: (e.clientX - rect.left) * scaleX,
-                y: (e.clientY - rect.top) * scaleY
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
             };
         };
 
@@ -195,7 +236,7 @@ $(document).ready(function () {
         };
 
         // Hit Test Handles
-        const HANDLE_SIZE = 10;
+        const HANDLE_SIZE = 20; // Increased for touch
         const hitTestHandle = (rect, mx, my) => {
             // Rect coords in Canvas Space
             const x = rect.x + state.padding.left;
@@ -226,9 +267,11 @@ $(document).ready(function () {
             return mx >= x && mx <= x + rect.w && my >= y && my <= y + rect.h;
         };
 
-        $canvas.on('mousedown', function (e) {
+        const handleStart = function (e) {
             if (!imageLoaded) return;
-            const pos = getMousePos(e);
+            if (e.type === 'touchstart') e.preventDefault();
+
+            const pos = getPointerPos(e);
             const imgPos = toImageSpace(pos);
 
             // 1. Check Handles of Active Rect
@@ -257,30 +300,25 @@ $(document).ready(function () {
             }
 
             // 3. Start Creating New Rect
-            // Clamp to image bounds? Or allow painting outside? User said "on image".
-            // Let's allow creating anywhere but relative to image is cleaner.
-            // If we are strictly outside image, maybe ignore? 
-            // Let's just create relative to padding.
             interaction.mode = 'creating';
             interaction.startPos = imgPos;
             interaction.activeRectIndex = -1;
             render(); // Deselect
-        });
+        };
 
-        $canvas.on('mousemove', function (e) {
+        const handleMove = function (e) {
             if (!imageLoaded) return;
-            const pos = getMousePos(e);
+            if (e.type === 'touchmove') e.preventDefault();
 
-            // Cursor Update
+            const pos = getPointerPos(e);
+
+            // Cursor Update (Mouse only essentially, but harmless on touch)
             if (interaction.mode === 'idle') {
-                // Check hover
                 let cursor = 'default';
-                // Check handles
                 if (interaction.activeRectIndex !== -1) {
                     const rect = state.blurRects[interaction.activeRectIndex];
-                    if (hitTestHandle(rect, pos.x, pos.y)) cursor = 'crosshair'; // or resize cursor
+                    if (hitTestHandle(rect, pos.x, pos.y)) cursor = 'crosshair';
                 }
-                // Check body
                 if (cursor === 'default') {
                     for (let i = state.blurRects.length - 1; i >= 0; i--) {
                         if (hitTestRect(state.blurRects[i], pos.x, pos.y)) {
@@ -296,10 +334,6 @@ $(document).ready(function () {
             // Creating
             if (interaction.mode === 'creating') {
                 const imgPos = toImageSpace(pos);
-                // Draw temporary rect via render or just update a temporary state?
-                // Actually we can push a temporary rect to list or use a temp variable.
-                // Let's use a temp "draft" rect or just commit on mouseup? 
-                // Better: draw current selection visualize in render.
                 interaction.currentDragRect = {
                     x: Math.min(interaction.startPos.x, imgPos.x),
                     y: Math.min(interaction.startPos.y, imgPos.y),
@@ -327,22 +361,17 @@ $(document).ready(function () {
                 const rect = state.blurRects[interaction.activeRectIndex];
                 const h = interaction.resizeHandle;
 
-                // Simple logic for each corner
                 if (h === 'br') { rect.w = init.w + dx; rect.h = init.h + dy; }
                 if (h === 'bl') { rect.x = init.x + dx; rect.w = init.w - dx; rect.h = init.h + dy; }
                 if (h === 'tr') { rect.y = init.y + dy; rect.w = init.w + dx; rect.h = init.h - dy; }
                 if (h === 'tl') { rect.x = init.x + dx; rect.y = init.y + dy; rect.w = init.w - dx; rect.h = init.h - dy; }
-
-                // Normalize if width/height negative
-                // (Optional: flip functionality. Simple implementation just keeps it messy or Math.abs)
-                // For now allow negative and normalize on mouse up? 
-                // Or just visualize as is. Canvas rect supports negative w/h? 
-                // rect(x,y,w,h) with negative draws correctly.
                 render();
             }
-        });
+        };
 
-        $canvas.on('mouseup', function (e) {
+        const handleEnd = function (e) {
+            if (e.type === 'touchend') e.preventDefault();
+
             if (interaction.mode === 'creating') {
                 if (interaction.currentDragRect && interaction.currentDragRect.w > 5 && interaction.currentDragRect.h > 5) {
                     state.blurRects.push(interaction.currentDragRect);
@@ -351,7 +380,6 @@ $(document).ready(function () {
                 interaction.currentDragRect = null;
                 saveState();
             } else if (interaction.mode === 'moving' || interaction.mode === 'resizing') {
-                // Normalize Rect (fix negative w/h)
                 const rect = state.blurRects[interaction.activeRectIndex];
                 if (rect.w < 0) { rect.x += rect.w; rect.w = Math.abs(rect.w); }
                 if (rect.h < 0) { rect.y += rect.h; rect.h = Math.abs(rect.h); }
@@ -360,7 +388,11 @@ $(document).ready(function () {
             interaction.mode = 'idle';
             interaction.resizeHandle = null;
             render();
-        });
+        };
+
+        $canvas.on('mousedown touchstart', handleStart);
+        $canvas.on('mousemove touchmove', handleMove);
+        $canvas.on('mouseup touchend', handleEnd);
     }
 
     function initRadiusControl() {
@@ -505,6 +537,9 @@ $(document).ready(function () {
     });
 
     function saveCanvas(format, quality) {
+        // Render without UI Artifacts
+        render(true);
+
         // Create download link
         const link = document.createElement('a');
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -516,6 +551,9 @@ $(document).ready(function () {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+
+        // Restore UI (with handles)
+        render(false);
     }
 
     // Reset Button

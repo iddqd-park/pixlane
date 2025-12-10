@@ -120,16 +120,156 @@ html {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    /* Entire panel scrolls */
+    overflow-x: hidden;
 }
 
 #control-panel h1 {
     font-size: 1.5rem;
     margin-bottom: 1rem;
     color: #fff;
+    flex-shrink: 0;
+    /* Don't shrink title */
 }
 
 /* Scrollable content in control panel if needed */
 .panel-content {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: visible;
+    /* Let parent handle scroll */
+}
+
+
+/* --- Mobile Layout & Responsive Styles --- */
+
+/* Tool Sections */
+.tool-section {
+    /* Desktop: Always visible by default (block) */
+    display: block;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #333;
+    padding-bottom: 1.5rem;
+}
+
+.tool-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+#tool-container {
+    /* Removed individual scroll */
+    /* Custom Scrollbar for dark theme */
+    scrollbar-width: thin;
+    scrollbar-color: #555 #1e1e1e;
+}
+
+
+/* Mobile Navigation Bar */
+#mobile-nav-bar {
+    height: 60px;
+    background-color: #252525;
+    border-top: 1px solid #333;
+    display: flex;
+    /* Overridden by d-md-none in HTML but good to have base */
+    justify-content: space-around;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.nav-btn {
+    background: none;
+    border: none;
+    color: #888;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    padding: 5px;
+    flex: 1;
+    height: 100%;
+    transition: all 0.2s;
+}
+
+.nav-btn:hover {
+    color: #bbb;
+    background-color: #2a2a2a;
+}
+
+.nav-btn.active {
+    color: #0d6efd;
+    background-color: #2d2d2d;
+    font-weight: 600;
+    box-shadow: inset 0 -2px 0 #0d6efd;
+}
+
+/* Mobile Specific Overrides */
+@media (max-width: 768px) {
+    #app-container {
+        flex-direction: column;
+    }
+
+    #canvas-area {
+        width: 100%;
+        flex: 1;
+        /* Takes available space */
+        padding: 20px;
+        background-color: #000;
+        /* Ensure bg is solid */
+    }
+
+    #control-panel {
+        width: 100%;
+        height: 45%;
+        /* Usage of height in column layout. Adjust based on preference. User said "Canvas Top (Most), Function Bar Bottom". So panel should be small? Or Panel IS the area for function details? 
+        The "Function Bar" is the bottom nav. When clicked, it shows the controls.
+        So #control-panel needs to contain the active tool controls.
+        Let's give it fixed height or max-height. 40-50% seems reasonable for controls. */
+        border-left: none;
+        border-top: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+        padding: 15px;
+    }
+
+    #tool-container {
+        padding-bottom: 10px;
+    }
+
+    /* In Mobile, hide all tools except active */
+    .tool-section {
+        display: none;
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+        animation: fadeIn 0.3s;
+    }
+
+    .tool-section.active {
+        display: block;
+    }
+
+    .section-title {
+        display: none;
+        /* Hide repetitive title in tool if clearer context provided, or keep? User requested "Canvas Top, Function bar bottom".
+        Usually mobile editors show just the slider/controls. Title is redundant if tab is active.
+        Let's hide specific titles if they are redundant with buttons, but keep for now.
+        Actually, let's keep them for clarity. */
+        display: block;
+        font-size: 0.9rem;
+        color: #888;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
