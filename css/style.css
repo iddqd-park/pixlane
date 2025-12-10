@@ -116,13 +116,20 @@ html {
     /* Fixed width for controls */
     background-color: #1e1e1e;
     border-left: 1px solid #333;
-    padding: 20px;
+    /* padding: 20px; Moved to wrapper */
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+}
+
+#panel-content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     overflow-y: auto;
-    /* Entire panel scrolls */
     overflow-x: hidden;
+    padding: 20px;
 }
 
 #control-panel h1 {
@@ -230,7 +237,13 @@ html {
         border-top: 1px solid #333;
         display: flex;
         flex-direction: column;
+        padding: 0;
+        /* Remove container padding */
+    }
+
+    #panel-content-wrapper {
         padding: 15px;
+        /* Apply padding to content */
     }
 
     #tool-container {
