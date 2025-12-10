@@ -168,6 +168,31 @@ $(document).ready(function () {
         }
     });
 
+    // Save Logic
+    $('.btn-save').on('click', function (e) {
+        e.preventDefault();
+        if (!imageLoaded) return;
+
+        const format = $(this).data('format');
+        const quality = parseFloat($(this).data('quality')) || undefined;
+
+        saveCanvas(format, quality);
+    });
+
+    function saveCanvas(format, quality) {
+        // Create download link
+        const link = document.createElement('a');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const ext = format === 'image/jpeg' ? 'jpg' : 'png';
+
+        link.download = `pixlane-${timestamp}.${ext}`;
+        link.href = canvas.toDataURL(format, quality);
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
     // Reset Button
     $('#btn-reset').on('click', function () {
         if (!imageLoaded) return;
@@ -186,6 +211,7 @@ $(document).ready(function () {
         imageLoaded = false;
         originalImage = null;
         $('#btn-reset').prop('disabled', true);
+        $('#btn-save-dropdown').prop('disabled', true); // Disable Save
 
         // Reset controls? Maybe keep them.
     }
@@ -203,6 +229,7 @@ $(document).ready(function () {
                 originalImage = img;
                 imageLoaded = true;
                 $('#btn-reset').prop('disabled', false);
+                $('#btn-save-dropdown').prop('disabled', false); // Enable Save
 
                 // Reset padding sliders to 0 or keep? 
                 render();
