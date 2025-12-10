@@ -76,18 +76,50 @@ $(document).ready(function () {
     initPaddingControls();
     initCanvasInteraction(); // New
     initKeyboardEvents(); // New
+    initLocalization(); // New
 
     function saveState() {
-        localStorage.setItem('pixlane_state', JSON.stringify(state));
+        // Exclude blurRects from state before saving (Privacy)
+        const { blurRects, ...stateToSave } = state;
+        localStorage.setItem('pixlane_state', JSON.stringify(stateToSave));
     }
 
     function loadState() {
         const saved = localStorage.getItem('pixlane_state');
         if (!saved) return null;
 
-        // Merge saved state with defaults to ensure new fields (like blurRects) exist
+        // Merge saved state with defaults to ensure new fields
         const parsed = JSON.parse(saved);
-        return { ...defaultState, ...parsed };
+        // Explicitly reset blurRects to [] even if some old data has it (though new saves won't have it)
+        return { ...defaultState, ...parsed, blurRects: [] };
+    }
+
+    function initLocalization() {
+        const userLang = navigator.language || navigator.userLanguage;
+        const isKorean = userLang.startsWith('ko');
+
+        // Description
+        const desc = isKorean
+            ? "이미지/스크린샷의 코너를 둥글리고, 예쁜 배경을 넣고, 민감한 개인정보들을 흐리게 처리해서 저장합니다."
+            : "Round the corners of images/screenshots, add beautiful backgrounds, blur sensitive personal information, and save them.";
+        $('#app-desc').text(desc);
+
+        // UI Labels
+        if (isKorean) {
+            $('#lbl-radius').text('코너 둥글리기');
+            $('#lbl-shadow').text('그림자 효과');
+            $('#lbl-padding').text('여백 넣기');
+            $('#lbl-background').text('배경 패턴 선택');
+            $('#lbl-blur').text('개인정보 가리기');
+            $('#blur-help').text('이미지 위를 드래그해서 개인정보를 가리세요');
+        } else {
+            $('#lbl-radius').text('Corner Radius');
+            $('#lbl-shadow').text('Drop Shadow');
+            $('#lbl-padding').text('Padding');
+            $('#lbl-background').text('Background');
+            $('#lbl-blur').text('Blur');
+            $('#blur-help').text('Drag on the image to create a blur box.');
+        }
     }
 
     function initShadowControl() {
@@ -672,32 +704,5 @@ $(document).ready(function () {
         }
     }
 
-    function initLocalization() {
-        const userLang = navigator.language || navigator.userLanguage;
-        const isKorean = userLang.startsWith('ko');
 
-        // Description
-        const desc = isKorean
-            ? "이미지/스크린샷의 코너를 둥글리고, 예쁜 배경을 넣고, 민감한 개인정보들을 흐리게 처리해서 저장합니다."
-            : "Round the corners of images/screenshots, add beautiful backgrounds, blur sensitive personal information, and save them.";
-        $('#app-desc').text(desc);
-
-        // UI Labels
-        if (isKorean) {
-            $('#lbl-radius').text('코너 둥글리기');
-            $('#lbl-shadow').text('그림자 효과');
-            $('#lbl-padding').text('여백 넣기');
-            $('#lbl-background').text('배경 패턴 선택');
-            $('#lbl-blur').text('개인정보 흐림 정도');
-        } else {
-            $('#lbl-radius').text('Corner Radius');
-            $('#lbl-shadow').text('Drop Shadow');
-            $('#lbl-padding').text('Padding');
-            $('#lbl-background').text('Background');
-            $('#lbl-blur').text('Blur');
-        }
-    }
-
-    // Call initLocalization
-    initLocalization();
 });
