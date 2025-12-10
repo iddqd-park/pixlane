@@ -1,0 +1,67 @@
+body, html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Prevent scroll on main body */
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+}
+
+#app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+#canvas-area {
+    flex: 1; /* Takes remaining space */
+    background-color: #2b2b2b;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: background-color 0.2s;
+}
+
+#canvas-area.drag-over {
+    background-color: #383838;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+}
+
+#canvas-placeholder {
+    text-align: center;
+    color: #888;
+    pointer-events: none; /* Let clicks pass through to container */
+}
+
+#main-canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: none; /* Hidden until loaded */
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+}
+
+#control-panel {
+    width: 320px; /* Fixed width for controls */
+    background-color: #1e1e1e;
+    border-left: 1px solid #333;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+#control-panel h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: #fff;
+}
+
+/* Scrollable content in control panel if needed */
+.panel-content {
+    flex: 1;
+    overflow-y: auto;
+}
