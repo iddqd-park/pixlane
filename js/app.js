@@ -14,20 +14,23 @@ $(document).ready(function () {
         padding: { top: 40, bottom: 40, left: 40, right: 40 },
         background: { type: 'linear', value: ['#7F00FF', '#E100FF'] }, // Purple gradient
         radius: 36,
+        blurLevel: 8,
+        blurRects: [], // {x, y, w, h}
         isPaddingLinked: true
     };
 
     // State - Try to load from local storage
     let state = loadState() || defaultState;
 
-    function saveState() {
-        localStorage.setItem('pixlane_state', JSON.stringify(state));
-    }
-
-    function loadState() {
-        const saved = localStorage.getItem('pixlane_state');
-        return saved ? JSON.parse(saved) : null;
-    }
+    // Interaction State
+    let interaction = {
+        mode: 'idle', // idle, creating, moving, resizing
+        startPos: { x: 0, y: 0 }, // Mouse down pos
+        activeRectIndex: -1, // Index of rect being moved/resized/selected
+        resizeHandle: null, // tl, tr, bl, br
+        initialRect: null, // Clone of rect at start of drag
+        currentDragRect: null // For visualizing new rect creation
+    };
 
     // Background Presets
     const backgrounds = [
@@ -66,8 +69,252 @@ $(document).ready(function () {
 
     // Initialize UI
     initRadiusControl();
+    initBlurControl(); // New
     initBackgroundGrid();
     initPaddingControls();
+    initCanvasInteraction(); // New
+    initKeyboardEvents(); // New
+
+    function saveState() {
+        localStorage.setItem('pixlane_state', JSON.stringify(state));
+    }
+
+    function loadState() {
+        const saved = localStorage.getItem('pixlane_state');
+        if (!saved) return null;
+
+        // Merge saved state with defaults to ensure new fields (like blurRects) exist
+        const parsed = JSON.parse(saved);
+        return { ...defaultState, ...parsed };
+    }
+
+    function initBlurControl() {
+        const $btns = $('#blur-group button');
+
+        // Init UI
+        $btns.removeClass('active');
+        $btns.filter(`[data-blur="${state.blurLevel}"]`).addClass('active');
+
+        $btns.on('click', function () {
+            $btns.removeClass('active');
+            $(this).addClass('active');
+            state.blurLevel = parseInt($(this).data('blur'));
+            saveState();
+            render();
+        });
+
+        $('#btn-clear-blur').on('click', function () {
+            if (confirm('Clear all blur areas?')) {
+                state.blurRects = [];
+                interaction.activeRectIndex = -1;
+                saveState();
+                render();
+            }
+        });
+    }
+
+    function initKeyboardEvents() {
+        $(document).on('keydown', function (e) {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && interaction.activeRectIndex !== -1) {
+                state.blurRects.splice(interaction.activeRectIndex, 1);
+                interaction.activeRectIndex = -1;
+                interaction.mode = 'idle';
+                saveState();
+                render();
+            }
+        });
+    }
+
+    function initCanvasInteraction() {
+        // We attach listeners to the canvas element
+        const getMousePos = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            // Scale if canvas is styled to be smaller than actual pixels (though we use max-width 100%, intrinsic size usually matches)
+            // But canvas.width is the intrinsic size. 
+            // We need to map client coordinates to canvas coordinates.
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        };
+
+        const toImageSpace = (pos) => {
+            return {
+                x: pos.x - state.padding.left,
+                y: pos.y - state.padding.top
+            };
+        };
+
+        // Hit Test Handles
+        const HANDLE_SIZE = 10;
+        const hitTestHandle = (rect, mx, my) => {
+            // Rect coords in Canvas Space
+            const x = rect.x + state.padding.left;
+            const y = rect.y + state.padding.top;
+            const w = rect.w;
+            const h = rect.h;
+
+            // Check 4 corners
+            const corners = {
+                'tl': { x: x, y: y },
+                'tr': { x: x + w, y: y },
+                'bl': { x: x, y: y + h },
+                'br': { x: x + w, y: y + h }
+            };
+
+            for (const [key, c] of Object.entries(corners)) {
+                if (mx >= c.x - HANDLE_SIZE && mx <= c.x + HANDLE_SIZE &&
+                    my >= c.y - HANDLE_SIZE && my <= c.y + HANDLE_SIZE) {
+                    return key;
+                }
+            }
+            return null;
+        };
+
+        const hitTestRect = (rect, mx, my) => {
+            const x = rect.x + state.padding.left;
+            const y = rect.y + state.padding.top;
+            return mx >= x && mx <= x + rect.w && my >= y && my <= y + rect.h;
+        };
+
+        $canvas.on('mousedown', function (e) {
+            if (!imageLoaded) return;
+            const pos = getMousePos(e);
+            const imgPos = toImageSpace(pos);
+
+            // 1. Check Handles of Active Rect
+            if (interaction.activeRectIndex !== -1) {
+                const rect = state.blurRects[interaction.activeRectIndex];
+                const handle = hitTestHandle(rect, pos.x, pos.y);
+                if (handle) {
+                    interaction.mode = 'resizing';
+                    interaction.resizeHandle = handle;
+                    interaction.startPos = pos;
+                    interaction.initialRect = { ...rect };
+                    return;
+                }
+            }
+
+            // 2. Check Hit on Existing Rects (Reverse order for topmost first)
+            for (let i = state.blurRects.length - 1; i >= 0; i--) {
+                if (hitTestRect(state.blurRects[i], pos.x, pos.y)) {
+                    interaction.mode = 'moving';
+                    interaction.activeRectIndex = i;
+                    interaction.startPos = pos;
+                    interaction.initialRect = { ...state.blurRects[i] };
+                    render(); // Highlight selection
+                    return;
+                }
+            }
+
+            // 3. Start Creating New Rect
+            // Clamp to image bounds? Or allow painting outside? User said "on image".
+            // Let's allow creating anywhere but relative to image is cleaner.
+            // If we are strictly outside image, maybe ignore? 
+            // Let's just create relative to padding.
+            interaction.mode = 'creating';
+            interaction.startPos = imgPos;
+            interaction.activeRectIndex = -1;
+            render(); // Deselect
+        });
+
+        $canvas.on('mousemove', function (e) {
+            if (!imageLoaded) return;
+            const pos = getMousePos(e);
+
+            // Cursor Update
+            if (interaction.mode === 'idle') {
+                // Check hover
+                let cursor = 'default';
+                // Check handles
+                if (interaction.activeRectIndex !== -1) {
+                    const rect = state.blurRects[interaction.activeRectIndex];
+                    if (hitTestHandle(rect, pos.x, pos.y)) cursor = 'crosshair'; // or resize cursor
+                }
+                // Check body
+                if (cursor === 'default') {
+                    for (let i = state.blurRects.length - 1; i >= 0; i--) {
+                        if (hitTestRect(state.blurRects[i], pos.x, pos.y)) {
+                            cursor = 'move';
+                            break;
+                        }
+                    }
+                }
+                $canvas.css('cursor', cursor);
+                return;
+            }
+
+            // Creating
+            if (interaction.mode === 'creating') {
+                const imgPos = toImageSpace(pos);
+                // Draw temporary rect via render or just update a temporary state?
+                // Actually we can push a temporary rect to list or use a temp variable.
+                // Let's use a temp "draft" rect or just commit on mouseup? 
+                // Better: draw current selection visualize in render.
+                interaction.currentDragRect = {
+                    x: Math.min(interaction.startPos.x, imgPos.x),
+                    y: Math.min(interaction.startPos.y, imgPos.y),
+                    w: Math.abs(imgPos.x - interaction.startPos.x),
+                    h: Math.abs(imgPos.y - interaction.startPos.y)
+                };
+                render();
+            }
+
+            // Moving
+            if (interaction.mode === 'moving') {
+                const dx = pos.x - interaction.startPos.x;
+                const dy = pos.y - interaction.startPos.y;
+                const rect = state.blurRects[interaction.activeRectIndex];
+                rect.x = interaction.initialRect.x + dx;
+                rect.y = interaction.initialRect.y + dy;
+                render();
+            }
+
+            // Resizing
+            if (interaction.mode === 'resizing') {
+                const dx = pos.x - interaction.startPos.x;
+                const dy = pos.y - interaction.startPos.y;
+                const init = interaction.initialRect;
+                const rect = state.blurRects[interaction.activeRectIndex];
+                const h = interaction.resizeHandle;
+
+                // Simple logic for each corner
+                if (h === 'br') { rect.w = init.w + dx; rect.h = init.h + dy; }
+                if (h === 'bl') { rect.x = init.x + dx; rect.w = init.w - dx; rect.h = init.h + dy; }
+                if (h === 'tr') { rect.y = init.y + dy; rect.w = init.w + dx; rect.h = init.h - dy; }
+                if (h === 'tl') { rect.x = init.x + dx; rect.y = init.y + dy; rect.w = init.w - dx; rect.h = init.h - dy; }
+
+                // Normalize if width/height negative
+                // (Optional: flip functionality. Simple implementation just keeps it messy or Math.abs)
+                // For now allow negative and normalize on mouse up? 
+                // Or just visualize as is. Canvas rect supports negative w/h? 
+                // rect(x,y,w,h) with negative draws correctly.
+                render();
+            }
+        });
+
+        $canvas.on('mouseup', function (e) {
+            if (interaction.mode === 'creating') {
+                if (interaction.currentDragRect && interaction.currentDragRect.w > 5 && interaction.currentDragRect.h > 5) {
+                    state.blurRects.push(interaction.currentDragRect);
+                    interaction.activeRectIndex = state.blurRects.length - 1;
+                }
+                interaction.currentDragRect = null;
+                saveState();
+            } else if (interaction.mode === 'moving' || interaction.mode === 'resizing') {
+                // Normalize Rect (fix negative w/h)
+                const rect = state.blurRects[interaction.activeRectIndex];
+                if (rect.w < 0) { rect.x += rect.w; rect.w = Math.abs(rect.w); }
+                if (rect.h < 0) { rect.y += rect.h; rect.h = Math.abs(rect.h); }
+                saveState();
+            }
+            interaction.mode = 'idle';
+            interaction.resizeHandle = null;
+            render();
+        });
+    }
 
     function initRadiusControl() {
         const $btns = $('#radius-group button');
@@ -274,7 +521,7 @@ $(document).ready(function () {
         reader.readAsDataURL(file);
     }
 
-    function render() {
+    function render(isExport = false) {
         if (!originalImage) return;
 
         const p = state.padding;
@@ -303,22 +550,93 @@ $(document).ready(function () {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Draw Image with Rounded Corners
+        // Draw Main Content (Image + Blurs) clipped by radius
         ctx.save();
 
         ctx.beginPath();
         if (ctx.roundRect) {
             ctx.roundRect(p.left, p.top, w, h, state.radius);
         } else {
-            // Fallback for older browsers
-            // Just simple rect if no roundRect support
             ctx.rect(p.left, p.top, w, h);
         }
         ctx.closePath();
         ctx.clip();
 
+        // 1. Draw Original Image
         ctx.drawImage(originalImage, p.left, p.top);
 
-        ctx.restore();
+        // 2. Draw Blur Rects
+        state.blurRects.forEach(rect => {
+            if (state.blurLevel > 0) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(p.left + rect.x, p.top + rect.y, rect.w, rect.h);
+                ctx.clip();
+
+                // Draw blurred version of the image
+                if (ctx.filter !== undefined) {
+                    ctx.filter = `blur(${state.blurLevel}px)`;
+                    ctx.drawImage(originalImage, p.left, p.top);
+                } else {
+                    // Fallback for no filter support (e.g. some mobile browsers)
+                    // Draw semi-transparent overlay
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.fillRect(p.left + rect.x, p.top + rect.y, rect.w, rect.h);
+                }
+                ctx.restore();
+            }
+        });
+
+        // 3. Draw Creating Rect (Visual only)
+        if (interaction.mode === 'creating' && interaction.currentDragRect) {
+            const r = interaction.currentDragRect;
+            if (state.blurLevel > 0) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(p.left + r.x, p.top + r.y, r.w, r.h);
+                ctx.clip();
+                if (ctx.filter !== undefined) {
+                    ctx.filter = `blur(${state.blurLevel}px)`;
+                    ctx.drawImage(originalImage, p.left, p.top);
+                } else {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.fillRect(p.left + r.x, p.top + r.y, r.w, r.h);
+                }
+                ctx.restore();
+            }
+            // Outline
+            ctx.strokeStyle = '#rgba(255,255,255,0.8)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(p.left + r.x, p.top + r.y, r.w, r.h);
+        }
+
+        ctx.restore(); // End Radius Clip
+
+        // Draw UI Interaction (Selection, Handles) - ONLY IF NOT EXPORTING
+        if (!isExport) {
+            // Active selection
+            if (interaction.activeRectIndex !== -1) {
+                const rect = state.blurRects[interaction.activeRectIndex];
+                const absX = p.left + rect.x;
+                const absY = p.top + rect.y;
+
+                ctx.strokeStyle = '#00FFFF';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(absX, absY, rect.w, rect.h);
+
+                // Handles
+                ctx.fillStyle = '#00FFFF';
+                const corners = [
+                    { x: absX, y: absY }, // tl
+                    { x: absX + rect.w, y: absY }, // tr
+                    { x: absX, y: absY + rect.h }, // bl
+                    { x: absX + rect.w, y: absY + rect.h } // br
+                ];
+                const HS = 10;
+                corners.forEach(c => {
+                    ctx.fillRect(c.x - HS / 2, c.y - HS / 2, HS, HS);
+                });
+            }
+        }
     }
 });
