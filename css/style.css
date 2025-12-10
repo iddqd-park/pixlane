@@ -101,6 +101,16 @@ html {
     background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
 }
 
+.iddqd-link {
+    transition: color 0.2s;
+}
+
+.iddqd-link:hover {
+    color: #e0e0e0 !important;
+    /* Lighter than text-secondary */
+    text-decoration: underline !important;
+}
+
 #control-panel {
     width: 320px;
     /* Fixed width for controls */

@@ -639,4 +639,31 @@ $(document).ready(function () {
             }
         }
     }
+
+    function initLocalization() {
+        const userLang = navigator.language || navigator.userLanguage;
+        const isKorean = userLang.startsWith('ko');
+
+        // Description
+        const desc = isKorean
+            ? "이미지/스크린샷의 코너를 둥글리고, 예쁜 배경을 넣고, 민감한 개인정보들을 흐리게 처리해서 저장합니다."
+            : "Round the corners of images/screenshots, add beautiful backgrounds, blur sensitive personal information, and save them.";
+        $('#app-desc').text(desc);
+
+        // UI Labels
+        if (isKorean) {
+            $('#lbl-radius').text('코너 둥글리기');
+            $('#lbl-padding').text('여백 넣기');
+            $('#lbl-background').text('배경 패턴 선택');
+            $('#lbl-blur').text('개인정보 흐림 정도');
+        } else {
+            $('#lbl-radius').text('Corner Radius');
+            $('#lbl-padding').text('Padding');
+            $('#lbl-background').text('Background');
+            $('#lbl-blur').text('Blur');
+        }
+    }
+
+    // Call initLocalization
+    initLocalization();
 });
