@@ -9,13 +9,25 @@ $(document).ready(function () {
     let imageLoaded = false;
     let originalImage = null;
 
-    // State
-    const state = {
-        padding: { top: 0, bottom: 0, left: 0, right: 0 },
-        background: { type: 'transparent' }, // { type: 'solid'|'gradient'|'transparent', value: ... }
-        radius: 0,
+    // Default State
+    const defaultState = {
+        padding: { top: 40, bottom: 40, left: 40, right: 40 },
+        background: { type: 'linear', value: ['#7F00FF', '#E100FF'] }, // Purple gradient
+        radius: 36,
         isPaddingLinked: true
     };
+
+    // State - Try to load from local storage
+    let state = loadState() || defaultState;
+
+    function saveState() {
+        localStorage.setItem('pixlane_state', JSON.stringify(state));
+    }
+
+    function loadState() {
+        const saved = localStorage.getItem('pixlane_state');
+        return saved ? JSON.parse(saved) : null;
+    }
 
     // Background Presets
     const backgrounds = [
@@ -44,7 +56,7 @@ $(document).ready(function () {
         // Quad/Mesh-like Gradients (Simulated with Diagonal Linear for now)
         { type: 'linear', value: ['#00F260', '#0575E6'] },
         { type: 'linear', value: ['#e1eec3', '#f05053'] },
-        { type: 'linear', value: ['#7F00FF', '#E100FF'] },
+        { type: 'linear', value: ['#7F00FF', '#E100FF'] }, // The purple one
         { type: 'linear', value: ['#659999', '#f4791f'] },
         { type: 'linear', value: ['#C33764', '#1D2671'] },
         { type: 'linear', value: ['#FEAC5E', '#C779D0', '#4BC0C8'] },
@@ -58,10 +70,17 @@ $(document).ready(function () {
     initPaddingControls();
 
     function initRadiusControl() {
-        $('#radius-group button').on('click', function () {
-            $('#radius-group button').removeClass('active');
+        const $btns = $('#radius-group button');
+
+        // Set initial UI
+        $btns.removeClass('active');
+        $btns.filter(`[data-radius="${state.radius}"]`).addClass('active');
+
+        $btns.on('click', function () {
+            $btns.removeClass('active');
             $(this).addClass('active');
             state.radius = parseInt($(this).data('radius'));
+            saveState();
             render();
         });
     }
@@ -80,12 +99,15 @@ $(document).ready(function () {
                 $thumb.css('background-image', `linear-gradient(135deg, ${colors})`);
             }
 
-            if (index === 0) $thumb.addClass('active');
+            // Check if matches state
+            const isMatch = JSON.stringify(bg.value) === JSON.stringify(state.background.value) && bg.type === state.background.type;
+            if (isMatch) $thumb.addClass('active');
 
             $thumb.on('click', function () {
                 $('.bg-thumb').removeClass('active');
                 $(this).addClass('active');
                 state.background = bg;
+                saveState();
                 render();
             });
 
@@ -102,9 +124,17 @@ $(document).ready(function () {
             r: $('#pad-right')
         };
 
+        // Init UI values from state
+        $lock.prop('checked', state.isPaddingLinked);
+        sliders.t.val(state.padding.top);
+        sliders.b.val(state.padding.bottom);
+        sliders.l.val(state.padding.left);
+        sliders.r.val(state.padding.right);
+
         // Link Toggle
         $lock.on('change', function () {
             state.isPaddingLinked = $(this).is(':checked');
+            saveState();
         });
 
         // Sliders
@@ -126,6 +156,7 @@ $(document).ready(function () {
                     if (key === 'l') state.padding.left = val;
                     if (key === 'r') state.padding.right = val;
                 }
+                saveState();
                 render();
             });
         });
