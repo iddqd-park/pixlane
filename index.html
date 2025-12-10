@@ -31,15 +31,18 @@
                 <h5>Drop image here or Click to upload</h5>
             </div>
             <canvas id="main-canvas"></canvas>
-            <!-- Hidden Input -->
-            <input type="file" id="file-input" accept="image/*" style="display: none;">
         </div>
+        <!-- Hidden Input (Moved outside to prevent click recursion) -->
+        <input type="file" id="file-input" accept="image/*" style="display: none;">
 
         <!-- Right: Control Panel -->
         <div id="control-panel">
             <h1>PixLane</h1>
             <div class="panel-content">
                 <p>Hello world</p>
+            </div>
+            <div class="mt-auto">
+                <button id="btn-reset" class="btn btn-outline-danger w-100" disabled>Reset</button>
             </div>
         </div>
     </div>
