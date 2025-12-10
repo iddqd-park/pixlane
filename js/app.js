@@ -78,6 +78,30 @@ $(document).ready(function () {
     initKeyboardEvents(); // New
     initLocalization(); // New
     initMobileNav(); // New
+    checkMobileAndAlert(); // New
+
+    function checkMobileAndAlert() {
+        // Simple mobile detection
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+        if (isMobile) {
+            const userLang = navigator.language || navigator.userLanguage;
+            const isKorean = userLang.startsWith('ko');
+
+            let msg = "";
+            if (isKorean) {
+                msg = "현재 본 서비스는 PC 환경에서만 정상적인 이용이 가능합니다. 모바일 환경에서는 동작이 원활하지 않을 수 있습니다. 조만간 지원 예정이며, 혹시라도 개발을 도와주실 분이 계시다면 환영합니다.\n\n- IDDQD Internet 박실장 白";
+            } else {
+                msg = "Currently, this service can only be used normally in a PC environment. The operation may not be smooth in a mobile environment. We plan to support it soon, and if anyone is willing to help with the development, you are welcome.\n\n- IDDQD Internet";
+            }
+
+            // Small timeout to ensure it pops after render? No, immediate is fine usually.
+            // Using setTimeout to allow UI to paint first so it doesn't freeze blank white.
+            setTimeout(() => {
+                alert(msg);
+            }, 100);
+        }
+    }
 
     function initMobileNav() {
         const $btns = $('.nav-btn');
