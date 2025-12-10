@@ -14,6 +14,7 @@ $(document).ready(function () {
         padding: { top: 40, bottom: 40, left: 40, right: 40 },
         background: { type: 'linear', value: ['#7F00FF', '#E100FF'] }, // Purple gradient
         radius: 36,
+        shadow: true, // New Default
         blurLevel: 8,
         blurRects: [], // {x, y, w, h}
         isPaddingLinked: true
@@ -69,6 +70,7 @@ $(document).ready(function () {
 
     // Initialize UI
     initRadiusControl();
+    initShadowControl(); // New
     initBlurControl(); // New
     initBackgroundGrid();
     initPaddingControls();
@@ -86,6 +88,19 @@ $(document).ready(function () {
         // Merge saved state with defaults to ensure new fields (like blurRects) exist
         const parsed = JSON.parse(saved);
         return { ...defaultState, ...parsed };
+    }
+
+    function initShadowControl() {
+        const $toggle = $('#shadow-toggle');
+
+        // Init UI
+        $toggle.prop('checked', state.shadow);
+
+        $toggle.on('change', function () {
+            state.shadow = $(this).is(':checked');
+            saveState();
+            render();
+        });
     }
 
     function initBlurControl() {
@@ -550,6 +565,23 @@ $(document).ready(function () {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
+        // Draw Drop Shadow
+        if (state.shadow) {
+            ctx.save();
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(p.left, p.top, w, h, state.radius);
+            } else {
+                ctx.rect(p.left, p.top, w, h);
+            }
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+            ctx.shadowBlur = 20;
+            ctx.shadowOffsetY = 10;
+            ctx.fillStyle = 'rgba(0,0,0,1)';
+            ctx.fill();
+            ctx.restore();
+        }
+
         // Draw Main Content (Image + Blurs) clipped by radius
         ctx.save();
 
@@ -653,11 +685,13 @@ $(document).ready(function () {
         // UI Labels
         if (isKorean) {
             $('#lbl-radius').text('코너 둥글리기');
+            $('#lbl-shadow').text('그림자 효과');
             $('#lbl-padding').text('여백 넣기');
             $('#lbl-background').text('배경 패턴 선택');
             $('#lbl-blur').text('개인정보 흐림 정도');
         } else {
             $('#lbl-radius').text('Corner Radius');
+            $('#lbl-shadow').text('Drop Shadow');
             $('#lbl-padding').text('Padding');
             $('#lbl-background').text('Background');
             $('#lbl-blur').text('Blur');
