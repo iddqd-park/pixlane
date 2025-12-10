@@ -13,6 +13,7 @@ $(document).ready(function () {
     const state = {
         padding: { top: 0, bottom: 0, left: 0, right: 0 },
         background: { type: 'transparent' }, // { type: 'solid'|'gradient'|'transparent', value: ... }
+        radius: 0,
         isPaddingLinked: true
     };
 
@@ -40,10 +41,7 @@ $(document).ready(function () {
         { type: 'linear', value: ['#dd5e89', '#f7bb97'] },
         { type: 'linear', value: ['#56ab2f', '#a8e063'] },
         { type: 'linear', value: ['#614385', '#516395'] },
-        // Quad/Mesh-like Gradients (Simulated with Diagonal Linear for now or CSS)
-        // For canvas drawing we need 2d gradients. We'll use simple Linear for "Quad" as placeholder or 
-        // implement a drawGradient helper that does multiple passes.
-        // Let's use more complex Linear gradients as placeholders for "Quad" variety
+        // Quad/Mesh-like Gradients (Simulated with Diagonal Linear for now)
         { type: 'linear', value: ['#00F260', '#0575E6'] },
         { type: 'linear', value: ['#e1eec3', '#f05053'] },
         { type: 'linear', value: ['#7F00FF', '#E100FF'] },
@@ -55,8 +53,18 @@ $(document).ready(function () {
     ];
 
     // Initialize UI
+    initRadiusControl();
     initBackgroundGrid();
     initPaddingControls();
+
+    function initRadiusControl() {
+        $('#radius-group button').on('click', function () {
+            $('#radius-group button').removeClass('active');
+            $(this).addClass('active');
+            state.radius = parseInt($(this).data('radius'));
+            render();
+        });
+    }
 
     function initBackgroundGrid() {
         const $grid = $('#bg-grid');
@@ -197,8 +205,6 @@ $(document).ready(function () {
                 $('#btn-reset').prop('disabled', false);
 
                 // Reset padding sliders to 0 or keep? 
-                // Let's keep them if user set them before, or reset to 0. Usually reset to 0 for new image.
-                // But user might want to reuse settings. Let's keep current state values for now but render applies them.
                 render();
 
                 // Show canvas, hide placeholder
@@ -239,7 +245,22 @@ $(document).ready(function () {
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Draw Image
+        // Draw Image with Rounded Corners
+        ctx.save();
+
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(p.left, p.top, w, h, state.radius);
+        } else {
+            // Fallback for older browsers
+            // Just simple rect if no roundRect support
+            ctx.rect(p.left, p.top, w, h);
+        }
+        ctx.closePath();
+        ctx.clip();
+
         ctx.drawImage(originalImage, p.left, p.top);
+
+        ctx.restore();
     }
 });
