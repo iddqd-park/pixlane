@@ -1,39 +1,38 @@
 # PixLane
 
-![PixLane Splash](./splash.png)
-
 [한국어 문서](./README.ko.md)
 
-**PixLane** is a simple yet powerful image editing tool designed for beautifying screenshots and redacting sensitive information. It runs 100% in your browser, ensuring your data never leaves your device.
+**PixLane** is a secure, client-side image editing tool designed for beautifying screenshots and redacting sensitive information. It operates entirely within your browser using HTML5 Canvas, ensuring that your images are never uploaded to a server or stored externally.
 
-## ✨ Key Features
+# Our Philosophy
+IDDQD Internet builds zero-DB, zero-signup tools powered by pure HTML/JS for instant browser execution. Even with AI features, we keep it stateless and record-free.
 
-- **100% Client-Side processing**: All image manipulation happens locally in your browser. No images are uploaded to any server.
-- **Privacy First**: Sensitive data redaction (blurring) is performed locally.
-- **No Installation & No Login**: Use it immediately in your browser.
-- **Screenshot Beautification**:
-  - Add rounded corners and drop shadows.
-  - Apply aesthetic background gradients or solid colors.
-  - Adjust padding around your image.
-- **Redaction Tool**: Easily blur out sensitive information (names, numbers, etc.) by dragging over the image.
-- **Save & Export**: Download your processed image as PNG or JPG.
+### [Run PixLane in Browser](https://app.iddqd.kr/pixlane)
 
-## 🕹️ How to Use
+![PixLane Splash](./splash.png)
 
-1. **Upload**: Drag & Drop your image or click to select a file.
+## Features
+- **100% Client-Side Processing**: All image manipulations occur locally. No server uploads, guaranteeing total privacy.
+- **Screenshot Beautification**: Add rounded corners, drop shadows, and aesthetic backgrounds/padding to your images.
+- **Privacy Redaction**: Easily blur sensitive details (names, numbers, etc.) by dragging over the image.
+- **No Installation Required**: Runs focused and fast directly in any modern web browser.
+
+## Usage
+1. **Upload**: Drag & drop your image or click to select a file.
 2. **Edit**:
-   - **Radius**: Soften the corners of your image.
-   - **Pad**: Add spacing around the image.
-   - **BG**: Choose a background that complements your image.
-   - **Blur**: Select the 'Blur' tool and drag on the image to hide sensitive details.
-3. **Save**: Click 'Save' to download the result.
+    - **Radius**: Adjust corner rounding combined with drop shadows.
+    - **Padding**: Add spacing around the image (customizable per side).
+    - **Background**: Apply a background color or gradient to the padded area.
+    - **Blur**: Use the blur tool to mask specific areas of the image by dragging over them.
+3. **Save**: Export your processed image as a PNG or JPEG.
 
-## 🛠️ Technology Stack
+## Tech Stack
+- **Core**: HTML5, Vanilla JavaScript, jQuery
+- **Rendering**: HTML5 Canvas API
+- **Styling**: Bootstrap 5, CSS3
 
-- **HTML5 Canvas**: For high-performance image rendering and manipulation.
-- **Vanilla JavaScript & jQuery**: Logic implementation.
-- **Bootstrap 5**: Responsive UI design.
-
-## 📄 License
-
-Free to use.
+# Contact & Author
+Park Sil-jang
+- Dev Team Lead at IDDQD Internet. E-solution & E-game Lead. Bushwhacking Code Shooter. Currently executing mandates as Choi’s Schemer.
+- HQ (EN): https://en.iddqd.kr/
+- GitHub: https://github.com/iddqd-park
