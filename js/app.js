@@ -8,6 +8,8 @@ $(document).ready(function () {
 
     let imageLoaded = false;
     let originalImage = null;
+    let clampedImage = null;
+    const CLAMP_OFFSET = 150; // Increased padding again to be safe
 
     // Default State
     const defaultState = {
@@ -597,10 +599,89 @@ $(document).ready(function () {
         $fileInput.val(''); // Reset input
         imageLoaded = false;
         originalImage = null;
+        clampedImage = null;
         $('#btn-reset').prop('disabled', true);
         $('#btn-save-dropdown').prop('disabled', true); // Disable Save
 
         // Reset controls? Maybe keep them.
+    }
+
+    function createClampedImage(img) {
+        const canvas = document.createElement('canvas');
+        const w = img.width;
+        const h = img.height;
+        const p = CLAMP_OFFSET;
+
+        canvas.width = w + p * 2;
+        canvas.height = h + p * 2;
+        const ctx = canvas.getContext('2d');
+
+        // 1. Draw Center
+        ctx.drawImage(img, p, p);
+
+        // 2. Draw Edges (Mirroring)
+        // Use Math.min to handle images smaller than padding
+        const sw = Math.min(w, p);
+        const sh = Math.min(h, p);
+
+        // Top (Mirror flippped)
+        ctx.save();
+        ctx.translate(0, p);
+        ctx.scale(1, -1);
+        ctx.drawImage(img, 0, 0, w, sh, p, 0, w, p);
+        ctx.restore();
+
+        // Bottom
+        ctx.save();
+        ctx.translate(0, p + h);
+        ctx.scale(1, -1);
+        ctx.drawImage(img, 0, h - sh, w, sh, p, 0, w, p);
+        ctx.restore();
+
+        // Left
+        ctx.save();
+        ctx.translate(p, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0, sw, h, 0, p, p, h);
+        ctx.restore();
+
+        // Right
+        ctx.save();
+        ctx.translate(p + w, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, w - sw, 0, sw, h, 0, p, p, h);
+        ctx.restore();
+
+        // 3. Draw Corners (Mirror Corner Blocks)
+        // TL
+        ctx.save();
+        ctx.translate(p, p);
+        ctx.scale(-1, -1);
+        ctx.drawImage(img, 0, 0, sw, sh, 0, 0, p, p);
+        ctx.restore();
+
+        // TR
+        ctx.save();
+        ctx.translate(p + w, p);
+        ctx.scale(-1, -1);
+        ctx.drawImage(img, w - sw, 0, sw, sh, 0, 0, p, p);
+        ctx.restore();
+
+        // BL
+        ctx.save();
+        ctx.translate(p, p + h);
+        ctx.scale(-1, -1);
+        ctx.drawImage(img, 0, h - sh, sw, sh, 0, 0, p, p);
+        ctx.restore();
+
+        // BR
+        ctx.save();
+        ctx.translate(p + w, p + h);
+        ctx.scale(-1, -1);
+        ctx.drawImage(img, w - sw, h - sh, sw, sh, 0, 0, p, p);
+        ctx.restore();
+
+        clampedImage = canvas;
     }
 
     function handleFile(file) {
@@ -614,6 +695,7 @@ $(document).ready(function () {
             const img = new Image();
             img.onload = function () {
                 originalImage = img;
+                createClampedImage(img);
                 imageLoaded = true;
                 $('#btn-reset').prop('disabled', false);
                 $('#btn-save-dropdown').prop('disabled', false); // Enable Save
@@ -702,7 +784,12 @@ $(document).ready(function () {
                 // Draw blurred version of the image
                 if (ctx.filter !== undefined) {
                     ctx.filter = `blur(${state.blurLevel}px)`;
-                    ctx.drawImage(originalImage, p.left, p.top);
+                    // Use clamped image to avoid dark edges
+                    if (clampedImage) {
+                        ctx.drawImage(clampedImage, p.left - CLAMP_OFFSET, p.top - CLAMP_OFFSET);
+                    } else {
+                        ctx.drawImage(originalImage, p.left, p.top);
+                    }
                 } else {
                     // Fallback for no filter support (e.g. some mobile browsers)
                     // Draw semi-transparent overlay
@@ -723,7 +810,11 @@ $(document).ready(function () {
                 ctx.clip();
                 if (ctx.filter !== undefined) {
                     ctx.filter = `blur(${state.blurLevel}px)`;
-                    ctx.drawImage(originalImage, p.left, p.top);
+                    if (clampedImage) {
+                        ctx.drawImage(clampedImage, p.left - CLAMP_OFFSET, p.top - CLAMP_OFFSET);
+                    } else {
+                        ctx.drawImage(originalImage, p.left, p.top);
+                    }
                 } else {
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
                     ctx.fillRect(p.left + r.x, p.top + r.y, r.w, r.h);
